@@ -42,6 +42,7 @@ export default function IntakeStudioPage() {
   const [isDecomposing, setIsDecomposing] = useState(false);
   const [drafts, setDrafts] = useState<EditableDraft[]>([]);
   const [modelLabel, setModelLabel] = useState<string | null>(null);
+  const [usedFallback, setUsedFallback] = useState<boolean | null>(null);
   const [publishStatus, setPublishStatus] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
 
@@ -73,6 +74,7 @@ export default function IntakeStudioPage() {
       const data = await res.json();
       if (data.tasks) {
         setModelLabel(data.model);
+        setUsedFallback(Boolean(data.isFallback));
         const mapped: EditableDraft[] = data.tasks.map(
           (t: DecomposedTask, index: number) => ({
             id: `draft_${Date.now()}_${index}`,
@@ -155,9 +157,19 @@ export default function IntakeStudioPage() {
             <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900 tracking-tight">
               AI Intake Studio
             </h1>
-            <Badge variant="emerald" dot>
-              Gemini 3.5 Flash-Lite
-            </Badge>
+            {usedFallback === null ? (
+              <Badge variant="emerald" dot>
+                Powered by Gemini
+              </Badge>
+            ) : usedFallback ? (
+              <Badge variant="amber" dot>
+                Demo fixture (AI offline)
+              </Badge>
+            ) : (
+              <Badge variant="emerald" dot>
+                Live Gemini
+              </Badge>
+            )}
           </div>
           <p className="text-xs sm:text-sm text-stone-500 mt-1">
             Dictate or paste a messy community organizer request. Relay decomposes it into structured, editable micro-shifts.
