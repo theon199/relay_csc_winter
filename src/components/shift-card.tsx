@@ -48,7 +48,7 @@ export interface ShiftWithRelations {
     avatarSeed: string;
     invitationId?: string | null;
   }>;
-  activeInviteToken?: string | null;
+  myInviteToken?: string | null;
 }
 
 interface ShiftCardProps {
@@ -70,7 +70,7 @@ export function ShiftCard({
   const [isCancelling, setIsCancelling] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [generatedInviteToken, setGeneratedInviteToken] = useState<string | null>(
-    shift.activeInviteToken || null
+    shift.myInviteToken || null
   );
 
   const hasClaimed = shift.participants.some((p) => p.userId === currentUserId);

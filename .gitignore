@@ -42,3 +42,7 @@ next-env.d.ts
 
 # local sqlite dev database
 .data/
+
+# wrangler local state
+.wrangler/
+worker/.wrangler/

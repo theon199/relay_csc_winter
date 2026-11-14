@@ -62,6 +62,33 @@ export const SEED_USERS: SeedUser[] = [
     skills: ["Graphic Design", "Children", "Translation"],
   },
   {
+    id: "usr_jordan",
+    displayName: "Jordan Lee",
+    role: "volunteer",
+    avatarSeed: "jordan",
+    email: "jordan.l@student.edu",
+    safeNeighborhood: "Capitol Hill",
+    skills: ["Outdoors", "Gardening"],
+  },
+  {
+    id: "usr_sam",
+    displayName: "Sam Okafor",
+    role: "volunteer",
+    avatarSeed: "sam",
+    email: "sam.o@student.edu",
+    safeNeighborhood: "Capitol Hill",
+    skills: ["Physical Help", "Packing"],
+  },
+  {
+    id: "usr_aiko",
+    displayName: "Aiko Tanaka",
+    role: "volunteer",
+    avatarSeed: "aiko",
+    email: "aiko.t@student.edu",
+    safeNeighborhood: "Wallingford",
+    skills: ["Books", "Children", "Data Entry"],
+  },
+  {
     id: "usr_admin",
     displayName: "Community Trust Admin",
     role: "admin",
@@ -248,4 +275,49 @@ export const SEED_SHIFTS: SeedShift[] = [
     status: "published",
     requiredSkills: ["Google Sheets", "Data Entry"],
   },
+];
+
+/** Fictional pre-seeded participation so discovery isn't empty on first load. */
+export interface SeedClaim {
+  id: string;
+  shiftId: string;
+  userId: string;
+  invitationId: string | null;
+}
+
+export interface SeedInvitation {
+  id: string;
+  token: string;
+  shiftId: string;
+  inviterUserId: string;
+  status: "active" | "claimed";
+  claimedByUserId: string | null;
+}
+
+export const SEED_INVITATIONS: SeedInvitation[] = [
+  // Marcus's open "Bring a Friend" link for the pantry shift (used in the judge demo).
+  {
+    id: "inv_marcus_pantry",
+    token: "invite-marcus-pantry",
+    shiftId: "shift_pantry_sorting",
+    inviterUserId: "usr_marcus",
+    status: "active",
+    claimedByUserId: null,
+  },
+  // Jordan brought Sam to the garden shift: a completed buddy pair.
+  {
+    id: "inv_jordan_garden",
+    token: "invite-jordan-garden",
+    shiftId: "shift_garden_mulching",
+    inviterUserId: "usr_jordan",
+    status: "claimed",
+    claimedByUserId: "usr_sam",
+  },
+];
+
+export const SEED_CLAIMS: SeedClaim[] = [
+  { id: "claim_marcus_pantry", shiftId: "shift_pantry_sorting", userId: "usr_marcus", invitationId: null },
+  { id: "claim_jordan_garden", shiftId: "shift_garden_mulching", userId: "usr_jordan", invitationId: null },
+  { id: "claim_sam_garden", shiftId: "shift_garden_mulching", userId: "usr_sam", invitationId: "inv_jordan_garden" },
+  { id: "claim_aiko_reading", shiftId: "shift_reading_corner", userId: "usr_aiko", invitationId: null },
 ];

@@ -1,22 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
-import { resetAndSeedDatabase } from "@/lib/db/seed";
+import { NextResponse } from "next/server";
+import { relay, errorResponse } from "@/lib/data-client";
 
-export async function POST(req: NextRequest) {
+export async function POST() {
   try {
-    const result = await resetAndSeedDatabase();
+    const details = await relay({ op: "resetDemo" });
     return NextResponse.json({
       success: true,
-      message: "Relay demo database has been reset to pristine baseline.",
-      details: result,
+      message: "Demo data reset to the original sample baseline.",
+      details,
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: error?.message || "Failed to reset demo database.",
-      },
-      { status: 500 }
-    );
+  } catch (err) {
+    return errorResponse(err, "Failed to reset demo data.");
   }
 }

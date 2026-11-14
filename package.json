@@ -8,8 +8,12 @@
     "start": "next start",
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:seed": "tsx src/lib/db/seed.ts"
+    "typecheck": "tsc --noEmit",
+    "worker:dev": "wrangler dev --config worker/wrangler.jsonc --local",
+    "worker:deploy": "wrangler deploy --config worker/wrangler.jsonc",
+    "db:migrate:local": "wrangler d1 migrations apply relay-db --local --config worker/wrangler.jsonc",
+    "db:migrate:remote": "wrangler d1 migrations apply relay-db --remote --config worker/wrangler.jsonc",
+    "smoke": "tsx scripts/smoke.ts"
   },
   "dependencies": {
     "@google/genai": "^3.2.0",

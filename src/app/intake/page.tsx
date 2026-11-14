@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { SEED_HUBS } from "@/lib/db/seed-data";
+import type { DecomposedTask } from "@/lib/ai/fallback-fixtures";
 
 interface EditableDraft {
   id: string;
@@ -73,7 +74,7 @@ export default function IntakeStudioPage() {
       if (data.tasks) {
         setModelLabel(data.model);
         const mapped: EditableDraft[] = data.tasks.map(
-          (t: any, index: number) => ({
+          (t: DecomposedTask, index: number) => ({
             id: `draft_${Date.now()}_${index}`,
             title: t.title || "Volunteer Activity",
             description: t.description || "",

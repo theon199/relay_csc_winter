@@ -42,9 +42,9 @@ export async function POST(req: NextRequest) {
     });
 
     return response;
-  } catch (error: any) {
+  } catch {
     return NextResponse.json(
-      { error: error?.message || "Failed to switch persona." },
+      { error: "Failed to switch persona." },
       { status: 500 }
     );
   }

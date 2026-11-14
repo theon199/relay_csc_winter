@@ -1,4 +1,5 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, uniqueIndex, index } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
@@ -71,7 +72,13 @@ export const shiftClaims = sqliteTable("shift_claims", {
     .default("confirmed"),
   invitationId: text("invitation_id"),
   createdAt: text("created_at").notNull(),
-});
+}, (t) => [
+  // One active claim per volunteer per shift, enforced by the database.
+  uniqueIndex("shift_claims_active_user_uq")
+    .on(t.shiftId, t.userId)
+    .where(sql`status = 'confirmed'`),
+  index("shift_claims_shift_idx").on(t.shiftId),
+]);
 
 export const invitations = sqliteTable("invitations", {
   id: text("id").primaryKey(),
