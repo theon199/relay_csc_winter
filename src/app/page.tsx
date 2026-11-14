@@ -34,8 +34,27 @@ const DiscoveryMap = dynamic(() => import("@/components/discovery-map"), {
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
+type FilterId = "all" | "in_person" | "remote" | "short" | "friends";
+
+interface MapHub {
+  id: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  category: string;
+  shiftTitles: string[];
+}
+
+interface DiscoveryStats {
+  buddyPairs: number;
+  volunteers: number;
+  filledSpots: number;
+  openSpots: number;
+}
+
 export default function DiscoveryPage() {
-  const [filterType, setFilterType] = useState<"all" | "in_person" | "remote" | "short" | "friends">("all");
+  const [filterType, setFilterType] = useState<FilterId>("all");
   const [activeHubId, setActiveHubId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"cards" | "map">("cards");
   const [currentUserId, setCurrentUserId] = useState<string>("usr_marcus");
@@ -89,14 +108,14 @@ export default function DiscoveryPage() {
       if (filterType === "in_person") return s.locationType === "in_person";
       if (filterType === "remote") return s.locationType === "remote";
       if (filterType === "short") return s.durationMins <= 60;
-      if (filterType === "friends") return s.participants.length > 0;
+      if (filterType === "friends") return s.participants.length > 0 && !s.isFull;
       return true;
     });
   }, [shifts, filterType]);
 
   // Extract unique hubs for map markers
   const mapHubs = useMemo(() => {
-    const hubMap = new Map<string, any>();
+    const hubMap = new Map<string, MapHub>();
     shifts.forEach((s) => {
       if (s.locationType === "in_person" && s.hub) {
         if (!hubMap.has(s.hub.id)) {
@@ -104,25 +123,27 @@ export default function DiscoveryPage() {
             id: s.hub.id,
             name: s.hub.name,
             address: s.hub.address,
-            latitude: (s.hub as any).latitude || 47.6152,
-            longitude: (s.hub as any).longitude || -122.3135,
+            latitude: s.hub.latitude ?? 47.6152,
+            longitude: s.hub.longitude ?? -122.3135,
             category: s.hub.category || "pantry",
             shiftTitles: [s.title],
           });
         } else {
-          hubMap.get(s.hub.id).shiftTitles.push(s.title);
+          hubMap.get(s.hub.id)!.shiftTitles.push(s.title);
         }
       }
     });
     return Array.from(hubMap.values());
   }, [shifts]);
 
-  const filterTabs = [
+  const stats: DiscoveryStats | undefined = data?.stats;
+
+  const filterTabs: { id: FilterId; label: string }[] = [
     { id: "all", label: "All Opportunities" },
     { id: "in_person", label: "Nearby In-Person" },
     { id: "remote", label: "Remote & Digital" },
     { id: "short", label: "Under 1 Hour" },
-    { id: "friends", label: "Has Volunteers" },
+    { id: "friends", label: "Join Others 🤝" },
   ];
 
   return (
@@ -154,6 +175,34 @@ export default function DiscoveryPage() {
         </div>
       </div>
 
+      {/* Going-together stats strip (sample data) */}
+      {stats && (
+        <div className="mb-5 grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {[
+            { label: "Buddy pairs formed", value: stats.buddyPairs, emoji: "🤝", highlight: true },
+            { label: "Volunteers going", value: stats.volunteers, emoji: "🙋" },
+            { label: "Spots filled", value: stats.filledSpots, emoji: "✅" },
+            { label: "Spots still open", value: stats.openSpots, emoji: "📍" },
+          ].map((item) => (
+            <div
+              key={item.label}
+              className={`rounded-2xl border px-3 py-2.5 ${
+                item.highlight ? "bg-gradient-to-br from-emerald-50 to-amber-50 border-emerald-200" : "bg-white border-stone-200"
+              }`}
+            >
+              <div className="text-xl font-extrabold text-stone-900 tabular-nums">
+                <span aria-hidden="true" className="mr-1 text-base">{item.emoji}</span>
+                {item.value}
+              </div>
+              <div className="text-[11px] font-medium text-stone-500">{item.label}</div>
+            </div>
+          ))}
+          <p className="col-span-2 sm:col-span-4 text-[10px] text-stone-400">
+            Sample data for the hackathon demo. Organizations, people and counts are fictional.
+          </p>
+        </div>
+      )}
+
       {/* Filter Tabs & Mobile View Switcher */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-stone-200">
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
@@ -162,7 +211,8 @@ export default function DiscoveryPage() {
             return (
               <button
                 key={tab.id}
-                onClick={() => setFilterType(tab.id as any)}
+                onClick={() => setFilterType(tab.id)}
+                aria-pressed={isActive}
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
                   isActive
                     ? "bg-emerald-800 text-white shadow-xs"

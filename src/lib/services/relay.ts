@@ -331,6 +331,22 @@ async function getOrCreateInvite(db: RelayDb, userId: string, shiftId: string) {
   return token;
 }
 
+/** A fresh "Bring a Friend" link for a volunteer who holds a confirmed claim (e.g. after revoking the old one). */
+export async function createInvite(db: RelayDb, userId: string, shiftId: string) {
+  const [claim] = await db
+    .select()
+    .from(schema.shiftClaims)
+    .where(
+      and(
+        eq(schema.shiftClaims.shiftId, shiftId),
+        eq(schema.shiftClaims.userId, userId),
+        eq(schema.shiftClaims.status, "confirmed")
+      )
+    );
+  if (!claim) throw new RelayError(403, "NO_CLAIM", "Claim a spot first, then you can invite a friend.");
+  return { invitationToken: await getOrCreateInvite(db, userId, shiftId) };
+}
+
 export async function cancelClaim(db: RelayDb, userId: string, shiftId: string) {
   const result = await db
     .update(schema.shiftClaims)

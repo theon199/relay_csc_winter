@@ -8,13 +8,28 @@ import {
   CheckCircle2,
   Share2,
   Calendar,
-  Sparkles,
-  ExternalLink,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ClaimCelebrationModal } from "@/components/claim-celebration-modal";
+import { AvatarStack } from "@/components/avatar-stack";
+
+/** One line of social proof: who is going, and whether anyone came with a friend. */
+function goingTogetherText(shift: ShiftWithRelations, currentUserId: string) {
+  const people = shift.participants;
+  const pair = people.find((p) => p.invitedBy);
+  const others = people.filter((p) => p.userId !== currentUserId);
+  if (people.length === 0) return "Be the first to go, and bring a friend";
+  if (pair) {
+    const rest = people.length - 2;
+    return `${pair.invitedBy} brought ${pair.displayName} along${rest > 0 ? ` + ${rest} more` : ""}`;
+  }
+  if (others.length === 0) return "You're going. Invite a friend to join you";
+  const names = others.slice(0, 2).map((p) => p.displayName).join(" & ");
+  const extra = others.length - 2;
+  return `${names}${extra > 0 ? ` + ${extra} more` : ""} ${others.length === 1 ? "is" : "are"} going${shift.isFull ? "" : ", join them"}`;
+}
 
 export interface ShiftWithRelations {
   id: string;
@@ -34,6 +49,8 @@ export interface ShiftWithRelations {
     name: string;
     address: string;
     category: string;
+    latitude?: number;
+    longitude?: number;
   } | null;
   organization?: {
     name: string;
@@ -47,7 +64,9 @@ export interface ShiftWithRelations {
     displayName: string;
     avatarSeed: string;
     invitationId?: string | null;
+    invitedBy?: string | null;
   }>;
+  buddyPairs?: number;
   myInviteToken?: string | null;
 }
 
@@ -68,16 +87,20 @@ export function ShiftCard({
 }: ShiftCardProps) {
   const [isClaiming, setIsClaiming] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
-  const [showCelebration, setShowCelebration] = useState(false);
-  const [generatedInviteToken, setGeneratedInviteToken] = useState<string | null>(
-    shift.myInviteToken || null
-  );
+  const [modal, setModal] = useState<"closed" | "celebrate" | "invite">("closed");
+  const [error, setError] = useState<string | null>(null);
+  // A local token change (claim, revoke, new link) wins until the next list refresh catches up.
+  const [tokenOverride, setTokenOverride] = useState<{ base: string | null; token: string | null } | null>(null);
+  const baseToken = shift.myInviteToken ?? null;
+  const inviteToken = tokenOverride && tokenOverride.base === baseToken ? tokenOverride.token : baseToken;
+  const setInviteToken = (token: string | null) => setTokenOverride({ base: baseToken, token });
 
   const hasClaimed = shift.participants.some((p) => p.userId === currentUserId);
-  const hasBuddyPair = shift.participants.length >= 2;
+  const hasBuddyPair = (shift.buddyPairs ?? 0) > 0;
 
   const handleClaim = async () => {
     setIsClaiming(true);
+    setError(null);
     try {
       const res = await fetch(`/api/shifts/${shift.id}/claim`, {
         method: "POST",
@@ -86,18 +109,19 @@ export function ShiftCard({
       });
       const data = await res.json();
       if (data.success) {
-        setGeneratedInviteToken(data.invitationToken);
-        setShowCelebration(true);
+        setInviteToken(data.invitationToken);
+        setModal("celebrate");
         if (typeof window !== "undefined" && "BroadcastChannel" in window) {
           const bc = new BroadcastChannel("relay_shifts");
           bc.postMessage({ type: "SHIFT_CLAIMED", shiftId: shift.id });
         }
         if (onClaimSuccess) onClaimSuccess();
       } else {
-        alert(data.error || "Failed to claim spot.");
+        setError(data.error || "Couldn't claim this spot.");
+        if (onClaimSuccess) onClaimSuccess();
       }
     } catch {
-      alert("Error claiming spot.");
+      setError("Network error. Please try again.");
     } finally {
       setIsClaiming(false);
     }
@@ -106,6 +130,7 @@ export function ShiftCard({
   const handleCancel = async () => {
     if (!confirm("Are you sure you want to cancel your volunteer spot?")) return;
     setIsCancelling(true);
+    setError(null);
     try {
       const res = await fetch(`/api/shifts/${shift.id}/cancel`, {
         method: "POST",
@@ -118,10 +143,10 @@ export function ShiftCard({
         }
         if (onClaimSuccess) onClaimSuccess();
       } else {
-        alert(data.error || "Failed to cancel claim.");
+        setError(data.error || "Couldn't cancel your spot.");
       }
     } catch {
-      alert("Error cancelling claim.");
+      setError("Network error. Please try again.");
     } finally {
       setIsCancelling(false);
     }
@@ -216,18 +241,28 @@ export function ShiftCard({
           </div>
         </div>
 
-        {/* Buddy Pair Tag if multiple volunteers joined */}
-        {hasBuddyPair && (
-          <div className="my-2.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-50 to-amber-50 border border-emerald-100 text-[11px] text-emerald-950 font-semibold flex items-center justify-between">
-            <span className="flex items-center gap-1.5">
-              <Users className="w-3.5 h-3.5 text-emerald-600" />
-              {shift.participants[0]?.displayName} & {shift.participants[1]?.displayName} attending together!
+        {/* Going together: social proof */}
+        <div
+          className={`my-2.5 px-3 py-2 rounded-xl border text-[11px] font-semibold flex items-center justify-between gap-2 ${
+            hasBuddyPair
+              ? "bg-gradient-to-r from-emerald-50 to-amber-50 border-emerald-100 text-emerald-950"
+              : "bg-stone-50 border-stone-100 text-stone-600"
+          }`}
+        >
+          <span className="flex items-center gap-2 min-w-0">
+            {shift.participants.length > 0 ? (
+              <AvatarStack people={shift.participants} max={4} />
+            ) : (
+              <Users className="w-4 h-4 text-stone-400 shrink-0" />
+            )}
+            <span className="truncate">{goingTogetherText(shift, currentUserId)}</span>
+          </span>
+          {hasBuddyPair && (
+            <span className="shrink-0 text-[10px] text-emerald-700 font-bold bg-white px-2 py-0.5 rounded-md border border-emerald-200">
+              Going together 🤝
             </span>
-            <span className="text-[10px] text-emerald-700 font-bold bg-white px-2 py-0.5 rounded-md border border-emerald-200">
-              Buddy Pair 🤝
-            </span>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Skills Tags & Card Actions */}
         <div className="pt-3 border-t border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -248,7 +283,7 @@ export function ShiftCard({
                 <Button
                   size="sm"
                   variant="primary"
-                  onClick={() => setShowCelebration(true)}
+                  onClick={() => setModal("invite")}
                   className="gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-xs"
                 >
                   <Share2 className="w-3.5 h-3.5 text-amber-300" />
@@ -279,13 +314,22 @@ export function ShiftCard({
             )}
           </div>
         </div>
+
+        {error && (
+          <p role="alert" className="mt-2 text-[11px] font-medium text-rose-700">
+            {error}
+          </p>
+        )}
       </Card>
 
       <ClaimCelebrationModal
-        open={showCelebration}
-        onOpenChange={setShowCelebration}
+        open={modal !== "closed"}
+        onOpenChange={(open) => !open && setModal("closed")}
+        celebrate={modal === "celebrate"}
+        shiftId={shift.id}
         shiftTitle={shift.title}
-        invitationToken={generatedInviteToken}
+        invitationToken={inviteToken}
+        onTokenChange={setInviteToken}
         volunteerName={currentUserName}
       />
     </>

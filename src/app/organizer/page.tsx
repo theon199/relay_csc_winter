@@ -46,7 +46,8 @@ export default function OrganizerDashboard() {
   const totalHours = Math.round(
     shifts.reduce((acc, s) => acc + (s.durationMins / 60) * s.claimedCount, 0) * 10
   ) / 10;
-  const buddyPairsCount = shifts.filter((s) => s.participants.length >= 2).length;
+  // A buddy pair = a volunteer who joined through a friend's invite link.
+  const buddyPairsCount: number = data?.stats?.buddyPairs ?? shifts.reduce((n, s) => n + (s.buddyPairs ?? 0), 0);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 flex flex-col">
@@ -197,7 +198,6 @@ export default function OrganizerDashboard() {
                   ) : (
                     <div className="divide-y divide-stone-100">
                       {shift.participants.map((p, pIdx) => {
-                        const isBuddy = p.invitationId !== null;
                         return (
                           <div
                             key={p.claimId}
@@ -218,13 +218,17 @@ export default function OrganizerDashboard() {
                             </div>
 
                             <div className="flex items-center gap-2">
-                              {shift.participants.length >= 2 ? (
+                              {p.invitedBy ? (
                                 <Badge variant="emerald" className="text-[10px]">
-                                  Buddy Pair 🤝
+                                  Came with {p.invitedBy} 🤝
+                                </Badge>
+                              ) : shift.participants.some((o) => o.invitedBy && o.invitedBy === p.displayName) ? (
+                                <Badge variant="amber" className="text-[10px]">
+                                  Brought a friend
                                 </Badge>
                               ) : (
                                 <Badge variant="stone" className="text-[10px]">
-                                  Solo Volunteer
+                                  Signed up solo
                                 </Badge>
                               )}
                               <Badge variant="emerald" dot className="text-[10px]">

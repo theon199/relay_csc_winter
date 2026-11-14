@@ -61,6 +61,9 @@ const worker = {
         case "cancelClaim":
           data = await svc.cancelClaim(db, str(req.userId), str(req.shiftId));
           break;
+        case "createInvite":
+          data = await svc.createInvite(db, str(req.userId), str(req.shiftId));
+          break;
         case "getInvite":
           data = await svc.getInvite(db, str(req.token));
           break;

@@ -17,6 +17,8 @@ import {
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AvatarStack } from "@/components/avatar-stack";
+import { SEED_USERS } from "@/lib/db/seed-data";
 
 interface InviteData {
   invitation: {
@@ -27,7 +29,9 @@ interface InviteData {
   inviter: {
     displayName: string;
     avatarSeed: string;
+    userId: string;
   };
+  going: { displayName: string; avatarSeed: string; userId: string }[];
   shift: {
     id: string;
     title: string;
@@ -39,6 +43,7 @@ interface InviteData {
     spotsRemaining: number;
     isFull: boolean;
     requiredSkills: string[];
+    organization?: { name: string } | null;
     hub?: {
       name: string;
       address: string;
@@ -54,6 +59,15 @@ function InviteContent({ params }: { params: Promise<{ token: string }> }) {
   const [error, setError] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
   const [joined, setJoined] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [viewerId, setViewerId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/switch-persona")
+      .then((res) => res.json())
+      .then((json) => setViewerId(json.activeUserId ?? null))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch(`/api/invite/${token}`)
@@ -76,6 +90,7 @@ function InviteContent({ params }: { params: Promise<{ token: string }> }) {
   const handleJoin = async () => {
     if (!data?.shift.id) return;
     setIsJoining(true);
+    setJoinError(null);
     try {
       const res = await fetch(`/api/shifts/${data.shift.id}/claim`, {
         method: "POST",
@@ -96,10 +111,10 @@ function InviteContent({ params }: { params: Promise<{ token: string }> }) {
           bc.postMessage({ type: "SHIFT_CLAIMED", shiftId: data.shift.id });
         }
       } else {
-        alert(result.error || "Unable to claim spot.");
+        setJoinError(result.error || "Unable to claim a spot.");
       }
     } catch {
-      alert("Error joining shift.");
+      setJoinError("Network error. Please try again.");
     } finally {
       setIsJoining(false);
     }
@@ -139,7 +154,22 @@ function InviteContent({ params }: { params: Promise<{ token: string }> }) {
     );
   }
 
-  const { inviter, shift } = data;
+  const { inviter, shift, invitation } = data;
+  const viewer = SEED_USERS.find((u) => u.id === viewerId);
+  const alreadyGoing = !joined && data.going.some((g) => g.userId === viewerId);
+  const isInviter = viewerId === inviter.userId;
+  const linkProblem = joined
+    ? null
+    : invitation.status === "revoked"
+    ? `${inviter.displayName} turned off this invite link.`
+    : invitation.status === "claimed"
+    ? "A friend already joined with this link. Each link works for one person."
+    : invitation.isExpired
+    ? "This invite link has expired."
+    : null;
+  const goingNow = joined && viewer
+    ? [...data.going, { displayName: viewer.displayName, avatarSeed: viewer.avatarSeed, userId: viewer.id }]
+    : data.going;
 
   return (
     <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
@@ -152,7 +182,7 @@ function InviteContent({ params }: { params: Promise<{ token: string }> }) {
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900 tracking-tight">
-            {inviter.displayName} invited you!
+            {inviter.displayName} wants you to come along!
           </h1>
           <p className="text-xs sm:text-sm text-stone-600 mt-1.5 max-w-md mx-auto">
             Volunteering is easier and more fun together. Join {inviter.displayName} for this quick community micro-shift.
@@ -189,13 +219,26 @@ function InviteContent({ params }: { params: Promise<{ token: string }> }) {
                 ? "You & " + inviter.displayName + " are Going!"
                 : shift.isFull
                 ? "Shift is Full"
-                : `${shift.spotsRemaining} spot left for you`}
+                : `${shift.spotsRemaining} of ${shift.capacity} spot${shift.spotsRemaining === 1 ? "" : "s"} left`}
             </span>
           </div>
 
           <h2 className="text-xl sm:text-2xl font-bold text-stone-900 mb-2">
             {shift.title}
           </h2>
+          {shift.organization && (
+            <p className="text-xs text-stone-500 -mt-1 mb-3 font-medium">{shift.organization.name}</p>
+          )}
+
+          {goingNow.length > 0 && (
+            <div className="mb-5 flex items-center gap-2.5 rounded-2xl bg-emerald-50/70 border border-emerald-100 px-3 py-2">
+              <AvatarStack people={goingNow} size="md" />
+              <p className="text-xs text-emerald-950 font-semibold">
+                {goingNow.map((g) => g.displayName).slice(0, 3).join(", ")}
+                {goingNow.length > 3 ? ` + ${goingNow.length - 3} more` : ""} {goingNow.length === 1 ? "is" : "are"} going
+              </p>
+            </div>
+          )}
           <p className="text-xs sm:text-sm text-stone-600 leading-relaxed mb-6">
             {shift.description}
           </p>
@@ -221,7 +264,9 @@ function InviteContent({ params }: { params: Promise<{ token: string }> }) {
 
             <div className="flex items-center gap-2.5 text-[11px] text-stone-500 pt-1 border-t border-stone-200/50">
               <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-              Verified public community venue for youth & student volunteers.
+              {shift.locationType === "in_person"
+                ? "Approved public community venue. No private addresses are ever used."
+                : "Remote task. Only your first name and last initial are shown to others."}
             </div>
           </div>
 
@@ -242,6 +287,20 @@ function InviteContent({ params }: { params: Promise<{ token: string }> }) {
                 <Button variant="primary" size="md" className="w-full">
                   View in My Shifts
                   <ArrowRight className="w-4 h-4 ml-1.5" />
+                </Button>
+              </Link>
+            </div>
+          ) : linkProblem || alreadyGoing || isInviter ? (
+            <div className="space-y-3">
+              <p className="text-xs text-amber-800 text-center font-medium bg-amber-50 border border-amber-200 rounded-xl p-3">
+                {linkProblem ??
+                  (isInviter
+                    ? "This is your own invite link. Share it with a friend, or switch to another demo persona (top right) to try joining."
+                    : "You already have a spot on this shift.")}
+              </p>
+              <Link href={alreadyGoing || isInviter ? "/my-shifts" : "/"} className="block">
+                <Button variant="outline" size="md" className="w-full">
+                  {alreadyGoing || isInviter ? "Go to My Shifts" : "Browse Other Open Shifts"}
                 </Button>
               </Link>
             </div>
@@ -267,6 +326,16 @@ function InviteContent({ params }: { params: Promise<{ token: string }> }) {
               <Sparkles className="w-4 h-4 mr-2 text-amber-300" />
               {isJoining ? "Claiming your spot..." : `Join ${inviter.displayName} & Claim Spot`}
             </Button>
+          )}
+          {!joined && viewer && !linkProblem && !isInviter && !alreadyGoing && !shift.isFull && (
+            <p className="mt-2 text-center text-[10px] text-stone-400">
+              Joining as demo persona {viewer.displayName}. Switch personas in the top bar.
+            </p>
+          )}
+          {joinError && (
+            <p role="alert" className="mt-3 text-center text-xs font-medium text-rose-700">
+              {joinError}
+            </p>
           )}
         </Card>
       </div>

@@ -12,6 +12,7 @@ type Op =
   | { op: "publishShifts"; userId: string; payload: unknown }
   | { op: "claimShift"; userId: string; shiftId: string; invitationToken?: string | null }
   | { op: "cancelClaim"; userId: string; shiftId: string }
+  | { op: "createInvite"; userId: string; shiftId: string }
   | { op: "getInvite"; token: string }
   | { op: "revokeInvite"; userId: string; token: string }
   | { op: "resetDemo" };
@@ -26,6 +27,7 @@ async function runLocal(req: Op): Promise<unknown> {
     case "publishShifts": return svc.publishShifts(db, req.userId, req.payload);
     case "claimShift": return svc.claimShift(db, req.userId, req.shiftId, req.invitationToken);
     case "cancelClaim": return svc.cancelClaim(db, req.userId, req.shiftId);
+    case "createInvite": return svc.createInvite(db, req.userId, req.shiftId);
     case "getInvite": return svc.getInvite(db, req.token);
     case "revokeInvite": return svc.revokeInvite(db, req.userId, req.token);
     case "resetDemo": return svc.resetDemo(db);

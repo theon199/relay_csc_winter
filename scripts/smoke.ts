@@ -40,6 +40,8 @@ const call = {
   cancel: (userId: string, shiftId: string) =>
     isWorker ? rpc({ op: "cancelClaim", userId, shiftId }) : api(`/api/shifts/${shiftId}/cancel`, userId, "POST", {}),
   invite: (token: string) => (isWorker ? rpc({ op: "getInvite", token }) : api(`/api/invite/${token}`, null)),
+  newInvite: (userId: string, shiftId: string) =>
+    isWorker ? rpc({ op: "createInvite", userId, shiftId }) : api(`/api/shifts/${shiftId}/invite`, userId, "POST", {}),
   revoke: (userId: string, token: string) =>
     isWorker ? rpc({ op: "revokeInvite", userId, token }) : api(`/api/invite/${token}/revoke`, userId, "POST", {}),
   publish: (userId: string, payload: unknown) =>
@@ -107,6 +109,10 @@ async function main() {
   check("revoke own invite", (await call.revoke("usr_marcus", marcusReading.data.invitationToken)).ok);
   const revoked = await call.claim("usr_jordan", "shift_reading_corner", marcusReading.data.invitationToken);
   check("revoked invite is rejected", revoked.code === "INVITE_REVOKED", revoked.code);
+  const fresh = await call.newInvite("usr_marcus", "shift_reading_corner");
+  check("new link after revoke", fresh.ok && fresh.data.invitationToken !== marcusReading.data.invitationToken, fresh.data);
+  const noClaimInvite = await call.newInvite("usr_sam", "shift_reading_corner");
+  check("can't create invite without a claim", noClaimInvite.code === "NO_CLAIM", noClaimInvite.code);
   const notMine = await call.revoke("usr_jordan", buddy.data.invitationToken);
   check("can't revoke someone else's invite", !notMine.ok, notMine.status);
 
