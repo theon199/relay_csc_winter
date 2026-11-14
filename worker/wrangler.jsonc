@@ -9,7 +9,7 @@
     {
       "binding": "DB",
       "database_name": "relay-db",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "d047f708-1fdb-4509-8003-28625ed52bdb",
       "migrations_dir": "../drizzle"
     }
   ]
