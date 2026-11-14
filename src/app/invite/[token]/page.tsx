@@ -52,6 +52,13 @@ interface InviteData {
   };
 }
 
+/** "Priya Patel" -> "Priya P.", matching what the server shows to others. */
+function shortName(name: string) {
+  const [first, ...rest] = name.trim().split(/\s+/);
+  const last = rest.at(-1);
+  return last ? `${first} ${last[0]}.` : first;
+}
+
 function InviteContent({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
   const [data, setData] = useState<InviteData | null>(null);
@@ -168,7 +175,7 @@ function InviteContent({ params }: { params: Promise<{ token: string }> }) {
     ? "This invite link has expired."
     : null;
   const goingNow = joined && viewer
-    ? [...data.going, { displayName: viewer.displayName, avatarSeed: viewer.avatarSeed, userId: viewer.id }]
+    ? [...data.going, { displayName: shortName(viewer.displayName), avatarSeed: viewer.avatarSeed, userId: viewer.id }]
     : data.going;
 
   return (

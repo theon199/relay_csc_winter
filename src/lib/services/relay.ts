@@ -473,7 +473,7 @@ export async function resetDemo(db: RelayDb) {
   for (const [i, s] of SEED_SHIFTS.entries()) {
     await db
       .insert(schema.shifts)
-      .values({ ...s, requiredSkills: JSON.stringify(s.requiredSkills), createdAt: at(300 - i) });
+      .values({ ...s, requiredSkills: JSON.stringify(s.requiredSkills), createdAt: at(300 + i) });
   }
   for (const inv of SEED_INVITATIONS) {
     await db
